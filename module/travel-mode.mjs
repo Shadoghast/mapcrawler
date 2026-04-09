@@ -178,6 +178,24 @@ export class TravelMode {
     TravelMode.#ticker = ticker;
 
     ticker.add((delta) => {
+      // DONE must be checked BEFORE gfx.clear() so the final frame stays
+      // visible on-screen while Foundry creates the persistent Drawing docs.
+      if (phase === "DONE") {
+        ticker.stop();
+        ticker.destroy();
+        TravelMode.#ticker = null;
+
+        TravelMode.#persistAsDrawing(points)
+          .catch(err => console.error("Mapcrawler | Failed to persist drawing:", err))
+          .finally(() => {
+            if (!gfx.destroyed) gfx.destroy();
+            TravelMode.#overlay = null;
+            TravelMode.#state   = "IDLE";
+            TravelMode.#points  = [];
+          });
+        return; // leave gfx intact until persist resolves
+      }
+
       gfx.clear();
       // delta is in frames; convert to ms assuming 60fps
       phaseTimer += delta * (1000 / 60);
@@ -210,18 +228,6 @@ export class TravelMode {
         gfx.endFill();
 
         if (endScale >= 1) { phase = "DONE"; }
-
-      } else if (phase === "DONE") {
-        ticker.stop();
-        ticker.destroy();
-        TravelMode.#ticker = null;
-
-        TravelMode.#persistAsDrawing(points).then(() => {
-          gfx.destroy();
-          TravelMode.#overlay = null;
-          TravelMode.#state   = "IDLE";
-          TravelMode.#points  = [];
-        });
       }
     });
 
@@ -243,27 +249,38 @@ export class TravelMode {
     const ys = points.map(p => p.y);
     const x  = Math.min(...xs);
     const y  = Math.min(...ys);
+    const w  = Math.max(...xs) - x;
+    const h  = Math.max(...ys) - y;
 
     // Drawing coords are relative to the bounding box top-left
     const rel = points.map(p => ({ x: p.x - x, y: p.y - y }));
 
-    const colorHex = `#${MAPCRAWLER.DEFAULT_COLOR.toString(16).padStart(6, "0")}`;
+    const colorHex   = `#${MAPCRAWLER.DEFAULT_COLOR.toString(16).padStart(6, "0")}`;
+
+    // Safe CONST fallbacks — values are stable across v11-v14 but guard anyway
+    const TYPE_FREE  = CONST.DRAWING_TYPES?.FREEHAND  ?? "f";
+    const TYPE_ELLIP = CONST.DRAWING_TYPES?.ELLIPSE   ?? "e";
+    const FILL_NONE  = CONST.DRAWING_FILL_TYPES?.NONE  ?? 0;
+    const FILL_SOLID = CONST.DRAWING_FILL_TYPES?.SOLID ?? 1;
 
     const [pathDoc] = await canvas.scene.createEmbeddedDocuments("Drawing", [{
-      type:        CONST.DRAWING_TYPES.FREEHAND,
+      type:        TYPE_FREE,
       author:      game.user.id,
       x, y,
       shape: {
+        // width/height required in v13 for the renderer to size the drawing correctly
+        width:  Math.max(w, 1),
+        height: Math.max(h, 1),
         points: rel.flatMap(p => [p.x, p.y]),
       },
       strokeWidth:  MAPCRAWLER.LINE_WIDTH,
       strokeColor:  colorHex,
       strokeAlpha:  MAPCRAWLER.DEFAULT_ALPHA,
-      fillType:     CONST.DRAWING_FILL_TYPES.NONE,
+      fillType:     FILL_NONE,
       bezierFactor: 0,
     }]);
 
-    // Store world-space points so the path can be replayed later
+    // Store world-space points on the path doc so the animation can be replayed
     await pathDoc.setFlag("mapcrawler", "points", points);
 
     const startPt = points[0];
@@ -271,19 +288,19 @@ export class TravelMode {
     const r       = MAPCRAWLER.DOT_RADIUS;
 
     await canvas.scene.createEmbeddedDocuments("Drawing", [
-      TravelMode.#dotDrawingData(startPt.x - r, startPt.y - r, r * 2, colorHex),
-      TravelMode.#dotDrawingData(endPt.x   - r, endPt.y   - r, r * 2, colorHex),
+      TravelMode.#dotDrawingData(startPt.x - r, startPt.y - r, r * 2, colorHex, TYPE_ELLIP, FILL_SOLID),
+      TravelMode.#dotDrawingData(endPt.x   - r, endPt.y   - r, r * 2, colorHex, TYPE_ELLIP, FILL_SOLID),
     ]);
   }
 
-  static #dotDrawingData(x, y, diameter, colorHex) {
+  static #dotDrawingData(x, y, diameter, colorHex, type, fillSolid) {
     return {
-      type:        CONST.DRAWING_TYPES.ELLIPSE,
+      type,
       author:      game.user.id,
       x, y,
       shape:       { width: diameter, height: diameter },
       strokeWidth: 0,
-      fillType:    CONST.DRAWING_FILL_TYPES.SOLID,
+      fillType:    fillSolid,
       fillColor:   colorHex,
       fillAlpha:   MAPCRAWLER.DEFAULT_ALPHA,
     };
