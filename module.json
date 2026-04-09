@@ -2,7 +2,7 @@
   "id": "mapcrawler",
   "title": "Mapcrawler",
   "description": "Animated Indiana Jones-style travel path drawing tool for scene maps.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "compatibility": {
     "minimum": "13",
     "verified": "14"
