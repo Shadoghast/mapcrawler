@@ -1,0 +1,17 @@
+{
+  "id": "mapcrawler",
+  "title": "Mapcrawler",
+  "description": "Animated Indiana Jones-style travel path drawing tool for scene maps.",
+  "version": "1.0.0",
+  "compatibility": {
+    "minimum": "13",
+    "verified": "14"
+  },
+  "authors": [{ "name": "Dan Weiss" }],
+  "esmodules": ["mapcrawler.mjs"],
+  "styles": ["styles/mapcrawler.css"],
+  "languages": [
+    { "lang": "en", "name": "English", "path": "lang/en.json" }
+  ],
+  "socket": false
+}

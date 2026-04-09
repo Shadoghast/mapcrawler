@@ -1,0 +1,9 @@
+@layer mapcrawler-base, mapcrawler-components;
+
+@layer mapcrawler-base {
+  /* Currently no custom HUD styles needed — drawing happens on the PIXI canvas */
+}
+
+@layer mapcrawler-components {
+  /* Future: style a config dialog or HUD controls here */
+}
