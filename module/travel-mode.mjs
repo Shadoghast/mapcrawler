@@ -291,11 +291,16 @@ export class TravelMode {
 
   // ── Public API ──────────────────────────────────────────────────────────────
 
+  /** True when no animation or drag is in progress. */
+  static get isIdle() {
+    return TravelMode.#state === "IDLE";
+  }
+
   /**
    * Replay the travel animation for an existing Drawing.
-   * Called from the Drawing context menu with the stored world-space points.
+   * Safe to call at any time — silently ignored if already animating.
    *
-   * @param {{x:number,y:number}[]} points
+   * @param {{x:number,y:number}[]} points  World-space points stored on the Drawing flag.
    */
   static replayAnimation(points) {
     if (TravelMode.#state !== "IDLE") return;

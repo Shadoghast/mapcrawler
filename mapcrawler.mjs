@@ -14,7 +14,28 @@ Hooks.once("init", function () {
 
 Hooks.once("ready", function () {
   TravelMode.init();
+  _patchDrawingClick();
 });
+
+/**
+ * Patch Drawing._onClickLeft so that clicking a Mapcrawler drawing replays
+ * its animation instead of just selecting it.
+ * Skipped while Travel Mode is active (the stage-level mousedown owns that).
+ */
+function _patchDrawingClick() {
+  const _onClickLeft = Drawing.prototype._onClickLeft;
+  Drawing.prototype._onClickLeft = function (event) {
+    // Only intercept when Travel Mode is off and we're not mid-animation
+    if (!TravelMode.active && TravelMode.isIdle) {
+      const points = this.document.getFlag("mapcrawler", "points");
+      if (points) {
+        TravelMode.replayAnimation(points);
+        return;   // suppress normal select behaviour for mapcrawler drawings
+      }
+    }
+    return _onClickLeft.call(this, event);
+  };
+}
 
 // Inject the Travel Mode toggle button into the Drawing tools panel
 Hooks.on("getSceneControlButtons", (controls) => {
